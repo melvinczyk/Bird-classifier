@@ -1,7 +1,7 @@
-
 american crow
 american goldfinch
 american robin
+barred owl
 blue jay
 brown-headed nuthatch
 carolina chickadee
@@ -12,11 +12,14 @@ dark-eyed junco
 downy woodpecker
 eastern bluebird
 eastern kingbird
+eastern phoebe
 eastern towhee
 house finch
 mallard
 mourning dove
+myrtle warbler
 northern cardinal
+northern flicker
 northern mockingbird
 pine warbler
 purple finch
@@ -25,5 +28,3 @@ red-winged blackbird
 song sparrow
 tufted titmouse
 white-breasted nuthatch
-yellow hammer
-yellow-rumped warbler
