@@ -1,7 +1,7 @@
 import os
 import pandas as pd
-import numpy as np
 from pydub import AudioSegment
+import numpy as np
 import librosa
 
 df = pd.read_csv('audio_files.csv')

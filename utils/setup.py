@@ -1,7 +1,6 @@
 import sys
 import platform
 import subprocess
-from setuptools import setup, find_packages
 
 def install_ffmpeg():
     if platform.system() == 'Darwin':
@@ -16,9 +15,6 @@ def install_ffmpeg():
         subprocess.run(['choco', 'install', 'ffmpeg'], check=True)
 
 def main():
-    with open('requirements.txt') as f:
-        requirements = f.read().splitlines()
-
     install_ffmpeg()
     subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
 
