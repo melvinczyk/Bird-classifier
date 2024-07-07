@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from pydub import AudioSegment
+from scipy.io import wavfile
 import numpy as np
 import librosa
 
@@ -11,5 +11,6 @@ for index, row in df.iterrows():
     file_name = row['File'].strip()
     file_path = f'dataset/audio/{bird_name}/{file_name}'
 
-    signal, sample_rate = librosa.load(file_path, sr=None)
+    rate, signal = wavfile.read(file_path)
+    df.at[file_path, 'length'] = signal.shape[0]/rate
     print(f"Processed file: {file_path}")

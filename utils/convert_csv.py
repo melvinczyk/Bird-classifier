@@ -15,7 +15,7 @@ def generate_csv(dataset_path, output_csv):
 
 
 if __name__ == "__main__":
-    dataset = './dataset/audio'
+    dataset = 'dataset/audio'
     output = 'audio_files.csv'
 
     generate_csv(dataset, output)
