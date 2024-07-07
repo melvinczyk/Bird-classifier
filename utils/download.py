@@ -21,6 +21,7 @@ def convert_to_wav(path):
         os.remove(path)
         print(f"Converted file {path} to {wav_file}")
     except Exception as e:
+        os.remove(path)
         print(f"Error convertig {path}: {e}")
 
 def convert_all(root_directory):
