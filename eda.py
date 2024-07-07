@@ -21,7 +21,7 @@ class_dist = df.groupby(['Bird Name'])['length'].mean()
 
 fig, ax = plt.subplots()
 ax.set_title('Class disrt', y=1.08)
-ax.pie(class_dist, labels=class_dist.index, auttopct='%1.1f%')
+ax.pie(class_dist, labels=class_dist.index, autopct='%1.1f%')
 ax.axis('equal')
 plt.show()
 df.reset_index(inplace=True)

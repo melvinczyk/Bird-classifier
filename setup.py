@@ -1,4 +1,6 @@
 import sys
+import os
+from utils.download import *
 import platform
 import subprocess
 
@@ -20,3 +22,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+    if not os.path.exists('dataset/audio'):
+        process()
+    convert_all('dataset/audio')
