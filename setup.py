@@ -3,6 +3,8 @@ import os
 from utils.download import *
 import platform
 import subprocess
+from utils.convert_csv import generate_csv
+
 
 def install_ffmpeg():
     if platform.system() == 'Darwin':
@@ -13,15 +15,11 @@ def install_ffmpeg():
         subprocess.run(['brew', 'install', 'ffmpeg'], check=True)
     elif platform.system() == 'Linux':
         subprocess.run(['apt-get', 'install', 'ffmpeg'], check=True)
-    elif platform.system() == 'Windows':
-        subprocess.run(['choco', 'install', 'ffmpeg'], check=True)
 
-def main():
-    install_ffmpeg()
-    subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
 
 if __name__ == '__main__':
-    main()
+    install_ffmpeg()
     if not os.path.exists('dataset/audio'):
         process()
     convert_all('dataset/audio')
+    generate_csv('dataset/audio', 'audio_files.csv')

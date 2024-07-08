@@ -1,6 +1,7 @@
 import os
 import csv
 
+
 def generate_csv(dataset_path, output_csv):
     with open(output_csv, 'w', newline='') as csvfile:
         csvwriter = csv.writer(csvfile)
