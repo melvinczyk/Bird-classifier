@@ -71,6 +71,11 @@ for f, row in df.iterrows():
     path = f'dataset/audio/{bird_name}/{f}'
 
     rate, signal = wavfile.read(path)
+    length = signal.shape[0]/rate
+    if length <= 1.5:
+        print(f'Removing corrupted file: {path}')
+        os.remove(path)
+        continue
     df.at[f, 'length'] = signal.shape[0]/rate
 
 df.to_csv('audio_files.csv')
@@ -122,9 +127,10 @@ plot_fbank(fbank)
 plt.show()
 
 if len(os.listdir('clean')) == 0:
-    for f in tqdm.tqdm(df['File']):
-        path = os.path.join('dataset/audio', row['Bird Name'].strip(), row['File'])
-        signal, rate = librosa.load(path, sr=16000)
-        mask = envelope(signal, rate, 0.0005)
-        wavfile.write(filename='clean/'+f, rate=rate, data=signal[mask])
-    
+    for root, dirs, files in os.walk('dataset/audio'):
+        for f in tqdm.tqdm(files):
+            path = os.path.join(root, f)
+            signal, rate = librosa.load(path, sr=16000)
+            mask = envelope(signal, rate, 0.0005)
+            clean_path = os.path.join('clean', f)
+            wavfile.write(clean_path, rate, signal[mask])
