@@ -4,7 +4,7 @@ import librosa.display
 import numpy as np
 
 
-y, sr = librosa.load('dataset/audio/AmericanCrow/762166.wav')
+y, sr = librosa.load('dataset/audio/AmericanCrow/12786.wav')
 plt.figure(figsize=(10, 4))
 librosa.display.waveshow(y, sr=sr)
 plt.title('Monophonic - file number 1')
