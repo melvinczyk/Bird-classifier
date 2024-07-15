@@ -30,22 +30,10 @@ def calc_fft(y, rate):
 df = pd.read_csv('audio_files.csv')
 df.set_index('File', inplace=True)
 
-for f, row in df.iterrows():
-    bird_name = row['Bird Name'].strip()
-    path = f'dataset/audio/{bird_name}/{f}'
-
-    rate, signal = wavfile.read(path)
-    length = signal.shape[0]/rate
-    if length <= 1.5:
-        print(f'Removing corrupted file: {path}')
-        os.remove(path)
-        continue
-    df.at[f, 'length'] = signal.shape[0]/rate
-
 df.to_csv('audio_files.csv')
 birds = df[df.columns[0]].to_numpy()
 classes = df['Bird Name'].unique()
-class_dist = df.groupby(['Bird Name'])['length'].mean()
+class_dist = df.groupby(['Bird Name'])['Length'].mean()
 
 fig, ax = plt.subplots()
 ax.set_title('Class dist', y=1.08)

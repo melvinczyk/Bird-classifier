@@ -1,6 +1,5 @@
 # Run this to get dataset
 import subprocess
-import sys
 from pydub import AudioSegment
 import platform
 import os
@@ -32,7 +31,7 @@ def convert_to_wav(path):
         print(f"Converted file {path} to {wav_file}")
     except Exception as e:
         os.remove(path)
-        print(f"Error convertig {path}: {e}")
+        print(f"Error converting {path}: {e}")
 
 
 def convert_all(root_directory):
