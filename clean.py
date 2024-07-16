@@ -1,12 +1,11 @@
 import librosa.feature
-import librosa.display
 import matplotlib.pyplot as plt
 import gc
 import os
 import numpy as np
 import warnings
+import noisereduce as nr
 import tqdm as tqdm
-warnings.filterwarnings("ignore")
 from scipy.io import wavfile
 
 
@@ -21,7 +20,7 @@ def saveMel(signal, dir):
     FMIN = 1400
 
     fig = plt.figure(1, frameon=False)
-    fig.set_size_inches(6,6)
+    fig.set_size_inches(6, 6)
     ax = plt.Axes(fig, [0., 0., 1., 1.])
     ax.set_axis_off()
     fig.add_axes(ax)
@@ -44,16 +43,27 @@ def saveMel(signal, dir):
     plt.close('all')
 
 
+def reduce_noise(file_path, output_path, sr=44100):
+    signal, rate = librosa.load(file_path)
+    reduce = nr.reduce_noise(y=signal, sr=rate)
+    reduce = (reduce * 32767).astype('int16')
+    wavfile.write(output_path, rate, reduce)
+
+
+
 def clean():
     for root, dirs, files in os.walk('clean'):
         for file in files:
             path = os.path.join(root, file)
             rate, signal = wavfile.read(path)
-            mel = './mels' + '/' + file+".png"
+            mel = './mels' + '/' + file + ".png"
             saveMel(signal, mel)
 
+
+reduce_noise('./dataset/audio/AmericanCrow/12786.wav', './clean/12786.wav')
 # waveform
-file = 'dataset/audio/AmericanCrow/12786.wav'
+#file = 'dataset/audio/AmericanCrow/12786.wav'
+file = 'clean/12786.wav'
 signal, sr = librosa.load(file)
 librosa.display.waveshow(signal, sr=sr)
 plt.xlabel("Time")
