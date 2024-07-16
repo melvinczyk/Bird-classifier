@@ -18,50 +18,26 @@ size = {
 }
 
 
-def saveMel(signal, directory, sr):
+def save_mel_spectrogram(signal, directory, sr):
+    params = {
+        'n_fft': 1024,
+        'hop_length': 1024,
+        'n_mels': 128,
+        'win_length': 1024,
+        'window': 'hann',
+        'htk': True,
+        'fmin': 1400,
+        'fmax': sr/2
+    }
 
-    N_FFT = 1024
-    HOP_SIZE = 1024
-    N_MELS = 128
-    WIN_SIZE = 1024
-    WINDOW_TYPE = 'hann'
-    FEATURE = 'mel'
-    FMIN = 1400
-
-    fig = plt.figure(1, frameon=False)
-    fig.set_size_inches(6, 6)
-
-    ax = plt.Axes(fig, [0., 0., 1., 1.])
+    fig, ax = plt.subplots(1, 1, figsize=(6, 6), frameon=False)
     ax.set_axis_off()
-    fig.add_axes(ax)
 
-    S = librosa.feature.melspectrogram(y=signal, sr=sr,
-                                       n_fft=N_FFT,
-                                       hop_length=HOP_SIZE,
-                                       n_mels=N_MELS,
-                                       htk=True,
-                                       fmin=FMIN,
-                                       fmax=sr / 2)
-    librosa.display.specshow(librosa.power_to_db(S ** 2, ref=np.max), fmin=FMIN)
-
+    S = librosa.feature.melspectrogram(y=signal, sr=sr, **params)
+    S_dB = librosa.power_to_db(S ** 2, ref=np.max)
+    librosa.display.specshow(S_dB, fmin=params['fmin'], ax=ax)
     fig.savefig(directory)
-    plt.ioff()
-    fig.clf()
-    ax.cla()
-    plt.clf()
-    plt.close('all')
-
-
-def save_mel_spectrogram(signal, sr, file_path):
-    mel_spec = librosa.feature.melspectrogram(y=signal, sr=sr, n_mels=128)
-    mel_spec_db = librosa.power_to_db(mel_spec, ref=np.max)
-    plt.figure(figsize=(10, 4))
-    librosa.display.specshow(mel_spec_db, sr=sr, x_axis='time', y_axis='mel')
-    plt.colorbar(format='%+2.0f dB')
-    plt.title('Mel-Spectrogram')
-    plt.tight_layout()
-    plt.savefig(file_path)
-    plt.close()
+    plt.close(fig)
 
 
 def process_audio_files(dataset_path, csv_path, mels_path, size):
@@ -93,7 +69,9 @@ def process_audio_files(dataset_path, csv_path, mels_path, size):
                     nr += 1
                     if end - start > size['minimum'] * sr:
                         segment_path = os.path.join(directory, f"{mel_base}_{nr}.png")
-                        saveMel(signal[start:end], segment_path, sr)
+                        save_mel_spectrogram(signal[start:end], segment_path, sr)
 
     print('Processing completed.')
+
+
 process_audio_files(dataset, 'audio_files.csv', mel_path, size)
