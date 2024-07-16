@@ -33,27 +33,3 @@ def clean_audio(dataset_path):
             input = os.path.join(bird_path, file)
             output = os.path.join(clean_path, file)
             reduce_noise(input, output)
-# waveform
-# file = 'dataset/audio/AmericanCrow/12786.wav'
-# file = 'clean/12786.wav'
-# signal, sr = librosa.load(file)
-# librosa.display.waveshow(signal, sr=sr)
-# plt.xlabel("Time")
-# plt.ylabel("Amplitude")
-# plt.show()
-#
-# fft -> spectrum
-# fft = np.fft.fft(signal)
-# magnitude = np.abs(fft)
-#
-# freq = np.linspace(0, sr, len(magnitude))
-#
-# left_freq = freq[:len(freq) // 2]
-# left_magnitude = magnitude[:len(freq) // 2]
-# plt.xlabel("Frequency [Hz]")
-# plt.ylabel("Amplitude [dB]")
-# plt.plot(left_freq, left_magnitude)
-# plt.show()
-
-# stft -> spectrogram
-#ap.plot_spectrogram('dataset/audio/AmericanCrow/828487.wav')

@@ -2,6 +2,7 @@ import os
 import csv
 import pandas as pd
 from scipy.io import wavfile
+import librosa
 
 
 def generate_csv(dataset_path, output_csv):
@@ -20,6 +21,10 @@ def generate_csv(dataset_path, output_csv):
                     print(f'Removing corrupted file" {file_path}')
                     os.remove(file_path)
                     continue
+                elif length > 80:
+                    os.remove(file_path)
+                    print(f"Removing file {file_path} with duration {length} seconds")
+                    continue
                 csvwriter.writerow([file, bird_name, length])
 
 
@@ -31,10 +36,12 @@ def formalize_csv(dataset_path, csv_path):
     for root, dirs, files in os.walk(dataset_path):
         bird_name = os.path.basename(root)
         for file in files:
+            file_path = os.path.join(root, file)
             if (bird_name, file) not in valid_files:
-                file_path = os.path.join(root, file)
                 os.remove(file_path)
                 print(f"Removing extra file {file_path}")
+
+
 
 
 if __name__ == "__main__":

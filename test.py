@@ -1,9 +1,5 @@
 import clean
 import utils.data_plots
+import utils.convert_csv
 
-clean.clean_audio('./dataset/audio')
-paths = [
-    './dataset/audio/AmericanCrow/114552.wav',
-    './clean/AmericanCrow/114552.wav'
-]
-utils.data_plots.plot_signals(paths)
+utils.data_plots.plot_spectrogram('./clean/AmericanCrow/722766.wav')

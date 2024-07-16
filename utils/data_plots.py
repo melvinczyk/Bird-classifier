@@ -5,7 +5,7 @@ import numpy as np
 
 
 def plot_signals(signal_paths):
-    fig, ax = plt.subplots(sharex=False, sharey=True, figsize=(20,5))
+    fig, ax = plt.subplots(sharex=False, sharey=True, figsize=(30,5))
     fig.suptitle('Time Series', size=16)
     y_offset = 0
     for path in signal_paths:
