@@ -14,9 +14,9 @@ def process():
         entry = line.strip()
         if entry:
             if platform.system() == 'Windows':
-                command = f'".venv/Scripts/xeno-canto.exe" -dl {entry} q:A cnt:United_States'
+                command = f'"../.venv/Scripts/xeno-canto.exe" -dl {entry} q:A cnt:United_States'
             else:
-                command = f'".venv/bin/xeno-canto" -dl {entry} q:A cnt:United_States'
+                command = f'"../.venv/bin/xeno-canto" -dl {entry} q:A cnt:United_States'
         else:
             command = f'xeno-canto -dl {entry} q:A cnt:United_States'
         subprocess.run(command, shell=True)

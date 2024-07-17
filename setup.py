@@ -1,5 +1,4 @@
 import sys
-import os
 from utils.download import *
 import platform
 import subprocess

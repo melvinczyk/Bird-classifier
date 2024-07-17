@@ -2,7 +2,6 @@ import os
 import csv
 import pandas as pd
 from scipy.io import wavfile
-import librosa
 
 
 def generate_csv(dataset_path, output_csv):
@@ -20,10 +19,6 @@ def generate_csv(dataset_path, output_csv):
                 if length <= 1.5:
                     print(f'Removing corrupted file" {file_path}')
                     os.remove(file_path)
-                    continue
-                elif length > 80:
-                    os.remove(file_path)
-                    print(f"Removing file {file_path} with duration {length} seconds")
                     continue
                 csvwriter.writerow([file, bird_name, length])
 
