@@ -17,7 +17,11 @@ def generate_csv(dataset_path, output_csv):
                 rate, signal = wavfile.read(file_path)
                 length = signal.shape[0]/rate
                 if length <= 1.5:
-                    print(f'Removing corrupted file" {file_path}')
+                    print(f'Removing corrupted file: {file_path}')
+                    os.remove(file_path)
+                    continue
+                elif length > 240:
+                    print(f'Removing lengthy file {length}: {file_path}')
                     os.remove(file_path)
                     continue
                 csvwriter.writerow([file, bird_name, length])

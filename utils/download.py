@@ -14,13 +14,15 @@ def process():
         entry = line.strip()
         if entry:
             if platform.system() == 'Windows':
-                command = f'"../.venv/Scripts/xeno-canto.exe" -dl {entry} q:A cnt:United_States'
+                command = f'"./.venv/Scripts/xeno-canto.exe" -dl {entry} cnt:United_States q:A'
             else:
-                command = f'"../.venv/bin/xeno-canto" -dl {entry} q:A cnt:United_States'
+                command = f'"./.venv/bin/xeno-canto" -dl {entry} cnt:United_States q:A'
         else:
-            command = f'xeno-canto -dl {entry} q:A cnt:United_States'
+            command = f'xeno-canto -dl {entry} cnt:United_States q:A'
         subprocess.run(command, shell=True)
 
+        b_quality = command[:-2] + ':B'
+        subprocess.run(b_quality, shell=True)
 
 def convert_to_wav(path):
     try:

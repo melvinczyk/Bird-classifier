@@ -72,6 +72,3 @@ def process_audio_files(dataset_path, csv_path, mels_path, size):
                         save_mel_spectrogram(signal[start:end], segment_path, sr)
 
     print('Processing completed.')
-
-
-process_audio_files(dataset, 'audio_files.csv', mel_path, size)
