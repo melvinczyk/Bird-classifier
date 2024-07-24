@@ -30,6 +30,6 @@ for bird, files in bird_files.items():
     val_set.append(int(val * num_files))
     test_set.append(int(test * num_files) + num_files - (int(train * num_files) + int(val * num_files) + int(test * num_files)))
     print(f"Found {len(bird_files.get(bird, []))} files for {bird}")
-    print(f"Train: {len(train_set)}, Val: {len(val_set)}, Test: {len(test_set)}")
+print(f"Train: {train_set}\nVal: {val_set}\nTest: {test_set}")
 
 
