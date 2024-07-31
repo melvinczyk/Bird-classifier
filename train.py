@@ -1,107 +1,165 @@
+import os
+from PIL import Image
 import torch
-from torch.utils.data import DataLoader
-from torchvision import datasets, transforms
+from torch.utils.data import Dataset, DataLoader, Subset, WeightedRandomSampler
+from torchvision import transforms
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torchinfo import summary
-from collections import Counter
-import os
+from sklearn.model_selection import train_test_split
+import numpy as np
+from torch.optim.lr_scheduler import StepLR
+import matplotlib.pyplot as plt
+import pandas as pd
 
+class BirdDataset(Dataset):
+    def __init__(self, root_dir, transform=None):
+        self.root_dir = root_dir
+        self.transform = transform
+        self.classes = sorted(os.listdir(root_dir))
+        self.class_to_idx = {cls_name: idx for idx, cls_name in enumerate(self.classes)}
+        self.file_paths = []
+        self.labels = []
 
-class CNNet(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=5)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=5)
-        self.conv2_drop = nn.Dropout2d()
-        self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(51136, 50)
-        self.fc2 = nn.Linear(50, 30)
+        for label, bird_class in enumerate(self.classes):
+            class_dir = os.path.join(root_dir, bird_class)
+            for file_name in os.listdir(class_dir):
+                if file_name.endswith('.png'):
+                    self.file_paths.append(os.path.join(class_dir, file_name))
+                    self.labels.append(label)
+
+    def __len__(self):
+        return len(self.file_paths)
+
+    def __getitem__(self, idx):
+        img_path = self.file_paths[idx]
+        image = Image.open(img_path).convert('RGB')
+        label = self.labels[idx]
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, label
+
+data_transforms = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomRotation(10),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+
+class BirdClassifierCNN(nn.Module):
+    def __init__(self, num_classes):
+        super(BirdClassifierCNN, self).__init__()
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+        self.dropout = nn.Dropout(0.5)
+        self.fc1 = nn.Linear(64 * 56 * 56, 512)
+        self.fc2 = nn.Linear(512, num_classes)
 
     def forward(self, x):
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-        x = self.flatten(x)
-        x = F.relu(self.fc1(x))
-        x = F.dropout(x, training=self.training)
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = x.view(-1, 64 * 56 * 56)
+        x = self.dropout(F.relu(self.fc1(x)))
         x = self.fc2(x)
-        return F.log_softmax(x, dim=1)
+        return x
 
-def train(dataloader, model, loss_fn, optimizer):
-    model.train()
-    size = len(dataloader.dataset)
-    for batch, (X, Y) in enumerate(dataloader):
-        X, Y = X.to(device), Y.to(device)
-        optimizer.zero_grad()
-        pred = model(X)
-        loss = loss_fn(pred, Y)
-        loss.backward()
-        optimizer.step()
-        if batch % 100 == 0:
-            loss, current = loss.item(), batch * len(X)
-            print(f'loss: {loss:>7f}  [{current:>5d}/{size:>5d}]')
+if __name__ == "__main__":
+    dataset = BirdDataset(root_dir='mels', transform=data_transforms)
+    print(f"Total number of samples in the dataset: {len(dataset)}")
 
-def test(dataloader, model, loss_fn):
-    size = len(dataloader.dataset)
-    model.eval()
-    test_loss, correct = 0, 0
-    with torch.no_grad():
-        for batch, (X, Y) in enumerate(dataloader):
-            X, Y = X.to(device), Y.to(device)
-            pred = model(X)
-            test_loss += loss_fn(pred, Y).item()
-            correct += (pred.argmax(1) == Y).type(torch.float).sum().item()
-    test_loss /= size
-    correct /= size
-    print(f'\nTest Error:\nacc: {(100 * correct):>0.1f}%, avg loss: {test_loss:>8f}\n')
+    class_counts = np.bincount(dataset.labels)
+    class_weights = 1.0 / class_counts
+    sample_weights = class_weights[dataset.labels]
 
-if __name__ == '__main__':
-    dataset_path = './mels/'
-    transform = transforms.Compose([transforms.Resize((201,81)), transforms.ToTensor()])
+    train_idx, val_idx = train_test_split(list(range(len(dataset))), test_size=0.2, random_state=42)
+    print(f"Number of training samples: {len(train_idx)}, Number of validation samples: {len(val_idx)}")
 
-    bird_dataset = datasets.ImageFolder(root=dataset_path, transform=transform)
-    print(bird_dataset)
+    train_set = Subset(dataset, train_idx)
+    val_set = Subset(dataset, val_idx)
 
-    class_map = bird_dataset.class_to_idx
-    print("\nClass category and index of the images: {}\n".format(class_map))
+    train_weights = [sample_weights[i] for i in train_idx]
+    train_sampler = WeightedRandomSampler(weights=train_weights, num_samples=len(train_weights), replacement=True)
 
-    train_size = int(0.8 * len(bird_dataset))
-    test_size = len(bird_dataset) - train_size
-    train_dataset, test_dataset = torch.utils.data.random_split(bird_dataset, [train_size, test_size])
+    train_loader = DataLoader(train_set, batch_size=32, sampler=train_sampler, num_workers=8, pin_memory=True)
+    val_loader = DataLoader(val_set, batch_size=32, shuffle=False, num_workers=8, pin_memory=True)
 
-    print("Training size:", len(train_dataset))
-    print("Testing size:", len(test_dataset))
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = BirdClassifierCNN(num_classes=len(dataset.classes)).to(device)
 
-    train_classes = [label for _, label in train_dataset]
-    print(Counter(train_classes))
+    class_weights_tensor = torch.tensor(class_weights, dtype=torch.float).to(device)
+    criterion = nn.CrossEntropyLoss(weight=class_weights_tensor)
 
-    train_dataloader = DataLoader(train_dataset, batch_size=15, num_workers=8, shuffle=True, pin_memory=True)
-    test_dataloader = DataLoader(test_dataset, batch_size=15, num_workers=8, shuffle=True, pin_memory=True)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    scheduler = StepLR(optimizer, step_size=7, gamma=0.1)
 
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print('Using {} device'.format(device))
+    num_epochs = 50
+    best_val_loss = float('inf')
+    patience = 5
+    early_stopping_counter = 0
 
-    model = CNNet().to(device)
-    loss_fn = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    for epoch in range(num_epochs):
+        model.train()
+        running_loss = 0.0
+        for inputs, labels in train_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+            running_loss += loss.item()
 
-    epochs = 100
-    for t in range(epochs):
-        print(f'Epoch {t+1}\n-------------------------------')
-        train(train_dataloader, model, loss_fn, optimizer)
-        test(test_dataloader, model, loss_fn)
-    print('completed')
+        print(f'Epoch {epoch + 1}/{num_epochs}, Loss: {running_loss / len(train_loader)}')
 
-    print(summary(model, input_size=(15, 3, 201, 81)))
+        model.eval()
+        val_loss = 0.0
+        correct = 0
+        total = 0
+        class_correct = [0] * len(dataset.classes)
+        class_total = [0] * len(dataset.classes)
+        with torch.no_grad():
+            for inputs, labels in val_loader:
+                inputs, labels = inputs.to(device), labels.to(device)
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+                val_loss += loss.item()
+                _, predicted = torch.max(outputs, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+                for i in range(len(labels)):
+                    label = labels[i].item()
+                    class_correct[label] += (predicted[i] == labels[i]).item()
+                    class_total[label] += 1
 
-    model.eval()
-    class_map = {v: k for k, v in bird_dataset.class_to_idx.items()}
-    with torch.no_grad():
-        for batch, (X, Y) in enumerate(test_dataloader):
-            X, Y = X.to(device), Y.to(device)
-            pred = model(X)
-            print("Predicted:\nvalue={}, class_name= {}\n".format(pred[0].argmax(0), class_map[pred[0].argmax(0).item()]))
-            print("Actual:\nvalue={}, class_name= {}\n".format(Y[0], class_map[Y[0].item()]))
+        val_loss /= len(val_loader)
+        accuracy = 100 * correct / total
+        print(f'Validation Loss: {val_loss}, Accuracy: {accuracy:.2f}%')
+
+        for i in range(len(dataset.classes)):
+            if class_total[i] > 0:
+                class_accuracy = 100 * class_correct[i] / class_total[i]
+            else:
+                class_accuracy = 0.0
+            print(f'Accuracy of {dataset.classes[i]} : {class_accuracy:.2f}%')
+
+
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            early_stopping_counter = 0
+            torch.save(model.state_dict(), 'bird_classifier_best_model.pth')
+            print("Model saved to bird_classifier_best_model.pth")
+        else:
+            early_stopping_counter += 1
+
+        if early_stopping_counter >= patience:
+            print("Early stopping triggered")
             break
-    torch.save(model.state_dict(), 'bird_classifier.pt')
+
+        scheduler.step()
+
+    print("Completed")

@@ -69,6 +69,10 @@ def process_audio_files(dataset_path, csv_path, mels_path, size):
                     nr += 1
                     if end - start > size['minimum'] * sr:
                         segment_path = os.path.join(directory, f"{mel_base}_{nr}.png")
+                        if os.path.exists(segment_path):
+                            print(f"{segment_path} exists, skipping")
+                            continue
                         save_mel_spectrogram(signal[start:end], segment_path, sr)
 
     print('Processing completed.')
+

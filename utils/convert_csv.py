@@ -53,7 +53,7 @@ def generate_mel_csv(dataset_path, output_csv):
 
 def formalize_mel_csv(dataset_path, csv_path):
     if not os.path.exists(csv_path):
-        generate_csv(dataset_path, csv_path)
+        generate_mel_csv(dataset_path, csv_path)
     df = pd.read_csv(csv_path)
     valid_files = set((row['Bird Name'], row['File']) for _, row in df.iterrows())
     for root, dirs, files in os.walk(dataset_path):

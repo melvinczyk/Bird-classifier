@@ -66,6 +66,19 @@ def plot_class_dist(files_csv):
     plt.show()
 
 
+def plot_mel_class_dist(mel_csv):
+    df = pd.read_csv(mel_csv)
+    class_counts = df['Bird Name'].value_counts().sort_values(ascending=True)
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.set_title('Class Distribution')
+    class_counts.plot(kind='barh', ax=ax)
+    ax.set_xlabel('Number of Files')
+    ax.set_ylabel('Bird Name')
+    plt.show()
+    # plt.savefig('mel_distribution_before.png')
+
+
 def plot_fbank(fbank, mfccs):
     fig, axes = plt.subplots(nrows=2, ncols=5, sharex=False, sharey=True, figsize=(20,5))
     fig.suptitle('Filter Bank Coeff', size=16)
