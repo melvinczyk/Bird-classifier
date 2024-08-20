@@ -66,10 +66,10 @@ def plot_confusion_matrix(cm, classes, title='Confusion matrix'):
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     plt.title(title)
-    plt.show()
+    plt.savefig('temp.png')
 
 if __name__ == "__main__":
-    dataset = BirdDataset(root_dir='mels', transform=data_transforms)
+    dataset = BirdDataset(root_dir='mels_5_sec', transform=data_transforms)
     print(f"Total number of samples in the dataset: {len(dataset)}")
 
     class_counts = np.bincount(dataset.labels)
@@ -159,8 +159,8 @@ if __name__ == "__main__":
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             early_stopping_counter = 0
-            torch.save(model.state_dict(), 'best_model_early_stop.pth')
-            print("Model saved to best_model_early_stop.pth")
+            torch.save(model.state_dict(), 'best_model_early_stop_v2.pth')
+            print("Model saved to best_model_early_stop_v2.pth")
         else:
             early_stopping_counter += 1
 

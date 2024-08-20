@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import librosa
 import pandas as pd
 import numpy as np
+import os
 
 
 def plot_signals(signal_paths):
@@ -66,17 +67,32 @@ def plot_class_dist(files_csv):
     plt.show()
 
 
-def plot_mel_class_dist(mel_csv):
-    df = pd.read_csv(mel_csv)
-    class_counts = df['Bird Name'].value_counts().sort_values(ascending=True)
+def plot_mel_class_dist(dataset_folder):
+    # Dictionary to store class counts
+    class_counts = {}
 
+    # Iterate through each bird name folder in the dataset folder
+    for bird_name in os.listdir(dataset_folder):
+        bird_folder = os.path.join(dataset_folder, bird_name)
+
+        # Check if it's a directory
+        if os.path.isdir(bird_folder):
+            # Count the number of files in the bird folder
+            file_count = len([f for f in os.listdir(bird_folder) if os.path.isfile(os.path.join(bird_folder, f))])
+            class_counts[bird_name] = file_count
+
+    # Convert class_counts dictionary to a DataFrame
+    df = pd.DataFrame(list(class_counts.items()), columns=['Bird Name', 'File Count'])
+    df = df.sort_values(by='File Count', ascending=True)
+
+    # Plot the class distribution
     fig, ax = plt.subplots(figsize=(10, 8))
     ax.set_title('Class Distribution')
-    class_counts.plot(kind='barh', ax=ax)
+    df.plot(kind='barh', x='Bird Name', y='File Count', ax=ax)
     ax.set_xlabel('Number of Files')
     ax.set_ylabel('Bird Name')
     plt.show()
-    # plt.savefig('mel_distribution_before.png')
+    plt.savefig('mel_distribution_5_sec.png')
 
 
 def plot_fbank(fbank, mfccs):
