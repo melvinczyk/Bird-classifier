@@ -66,7 +66,7 @@ def plot_confusion_matrix(cm, classes, title='Confusion matrix'):
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     plt.title(title)
-    plt.savefig('temp.png')
+    plt.savefig('final_matrix.png')
 
 if __name__ == "__main__":
     dataset = BirdDataset(root_dir='mels_5_sec', transform=data_transforms)

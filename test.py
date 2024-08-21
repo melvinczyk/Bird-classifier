@@ -1,37 +1,62 @@
 import os
 import torch
-import torch.nn as nn
-import torchaudio
 import numpy as np
-import matplotlib.pyplot as plt
-from torchvision import transforms
-from PIL import Image
-from collections import Counter
 import librosa
+import matplotlib.pyplot as plt
 import librosa.display
+from PIL import Image
+from torchvision import transforms
+from torch.utils.data import Dataset
+from torchvision import models
+from torchvision.models import ResNet18_Weights
 
-class BirdClassifierCNN(nn.Module):
-    def __init__(self, num_classes=29):
+class BirdDataset(Dataset):
+    def __init__(self, root_dir, transform=None):
+        self.root_dir = root_dir
+        self.transform = transform
+        self.classes = sorted(os.listdir(root_dir))
+        self.class_to_idx = {cls_name: idx for idx, cls_name in enumerate(self.classes)}
+        self.file_paths = []
+        self.labels = []
+
+        for label, bird_class in enumerate(self.classes):
+            class_dir = os.path.join(root_dir, bird_class)
+            for file_name in os.listdir(class_dir):
+                if file_name.endswith('.png'):
+                    self.file_paths.append(os.path.join(class_dir, file_name))
+                    self.labels.append(label)
+
+    def __len__(self):
+        return len(self.file_paths)
+
+    def __getitem__(self, idx):
+        img_path = self.file_paths[idx]
+        image = Image.open(img_path).convert('RGB')
+        label = self.labels[idx]
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, label
+
+data_transforms = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+
+class BirdClassifierCNN(torch.nn.Module):
+    def __init__(self, num_classes):
         super(BirdClassifierCNN, self).__init__()
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
-        self.fc1 = nn.Linear(128 * 28 * 28, 512)
-        self.fc2 = nn.Linear(512, num_classes)
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(0.5)
+        self.model = models.resnet18(weights=ResNet18_Weights.DEFAULT)
+        num_ftrs = self.model.fc.in_features
+        self.model.fc = torch.nn.Linear(num_ftrs, num_classes)
 
     def forward(self, x):
-        x = self.pool(self.relu(self.conv1(x)))
-        x = self.pool(self.relu(self.conv2(x)))
-        x = self.pool(self.relu(self.conv3(x)))
-        x = x.view(-1, 128 * 28 * 28)
-        x = self.dropout(self.relu(self.fc1(x)))
-        x = self.fc2(x)
-        return x
+        return self.model(x)
 
-def save_mel_spectrogram(signal, sr):
+
+def save_mel_spectrogram(signal, directory, sr):
     params = {
         'n_fft': 1024,
         'hop_length': 1024,
@@ -40,64 +65,156 @@ def save_mel_spectrogram(signal, sr):
         'window': 'hann',
         'htk': True,
         'fmin': 1400,
-        'fmax': sr/2
+        'fmax': sr / 2
     }
-
-    S = librosa.feature.melspectrogram(y=signal, sr=sr, **params)
-    S_dB = librosa.power_to_db(S ** 2, ref=np.max)
 
     fig, ax = plt.subplots(1, 1, figsize=(6, 6), frameon=False)
     ax.set_axis_off()
-    librosa.display.specshow(S_dB, sr=sr, fmin=params['fmin'], ax=ax)
-    fig.canvas.draw()
 
-    image = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-    image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    image = Image.fromarray(image)
+    S = librosa.feature.melspectrogram(y=signal, sr=sr, **params)
+    S_dB = librosa.power_to_db(S ** 2, ref=np.max)
+    librosa.display.specshow(S_dB, fmin=params['fmin'], ax=ax)
+    fig.savefig(directory)
     plt.close(fig)
-    return image
 
-def wav_to_spectrograms(wav_file, segment_length=10):
-    waveform, sr = librosa.load(wav_file, sr=16000)
-    num_segments = len(waveform) // (sr * segment_length)
-    spectrograms = []
 
-    for i in range(num_segments):
-        start = i * sr * segment_length
-        end = start + sr * segment_length
-        segment = waveform[start:end]
-        spectrogram = save_mel_spectrogram(segment, sr)
-        spectrograms.append(spectrogram)
+def process_audio_file(file_path, output_dir, size):
+    signal, sr = librosa.load(file_path, sr=16000)
+    step = (size['desired'] - size['stride']) * sr
+    mel_spectrogram_paths = []
 
-    return spectrograms
+    for start in range(0, len(signal) - size['desired'] * sr + 1, step):
+        end = start + size['desired'] * sr
+        segment = signal[start:end]
 
-def test_model(wav_file, model_path):
-    model = BirdClassifierCNN(num_classes=29)
-    model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu'), weights_only=True))
+        if len(segment) < size['desired'] * sr:
+            segment = np.pad(segment, (0, size['desired'] * sr - len(segment)), mode='constant')
+
+        mel_path = os.path.join(output_dir, f"segment_{start // sr}.png")
+        if not os.path.exists(mel_path):
+            save_mel_spectrogram(segment, mel_path, sr)
+        mel_spectrogram_paths.append(mel_path)
+
+    if len(signal) >= size['minimum'] * sr:
+        start = max(0, len(signal) - size['desired'] * sr)
+        segment = signal[start:]
+
+        if len(segment) < size['desired'] * sr:
+            segment = np.pad(segment, (0, size['desired'] * sr - len(segment)), mode='constant')
+
+        mel_path = os.path.join(output_dir, f"segment_{start // sr}.png")
+        if not os.path.exists(mel_path):
+            save_mel_spectrogram(segment, mel_path, sr)
+        mel_spectrogram_paths.append(mel_path)
+
+    return mel_spectrogram_paths
+
+
+
+def classify_audio_file(file_path, model, transform, device):
     model.eval()
-
-    spectrograms = wav_to_spectrograms(wav_file)
-
-    transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-    ])
-
+    mel_spectrogram_paths = process_audio_file(file_path, 'temp_mels',
+                                               size={'desired': 5, 'minimum': 4, 'stride': 0, 'name': 5})
     predictions = []
 
-    with torch.no_grad():
-        for spectrogram in spectrograms:
-            image = transform(spectrogram).unsqueeze(0)
+    for mel_path in mel_spectrogram_paths:
+        image = Image.open(mel_path).convert('RGB')
+        image = transform(image).unsqueeze(0).to(device)
+
+        with torch.no_grad():
             output = model(image)
-            _, predicted = torch.max(output, 1)
-            predictions.append(predicted.item())
+            probabilities = torch.softmax(output, dim=1).cpu().numpy()[0]
+            top_probs, top_classes = torch.topk(torch.tensor(probabilities), k=5)
+            top_probs = top_probs.numpy()
+            top_classes = top_classes.numpy()
+
+            predictions.append({
+                'predicted_class': torch.argmax(output, dim=1).item(),
+                'probabilities': probabilities,
+                'top_probs': top_probs,
+                'top_classes': top_classes
+            })
+
+    return predictions, mel_spectrogram_paths
 
 
-    most_common_prediction = Counter(predictions).most_common(1)[0][0]
-    return most_common_prediction
+def load_model(model_path, num_classes, device):
+    model = BirdClassifierCNN(num_classes=num_classes).to(device)
+    model.load_state_dict(torch.load(model_path, map_location=device, weights_only=True))
+    return model
+
+
+def main():
+    bird_dict = {
+        0: "american crow",
+        1: "american goldfinch",
+        2: "american robin",
+        3: "barred owl",
+        4: "blue jay",
+        5: "brown-headed nuthatch",
+        6: "carolina chickadee",
+        7: "carolina wren",
+        8: "cedar waxwing",
+        9: "chipping sparrow",
+        10: "dark-eyed junco",
+        11: "downy woodpecker",
+        12: "eastern bluebird",
+        13: "eastern kingbird",
+        14: "eastern phoebe",
+        15: "eastern towhee",
+        16: 'empty',
+        17: "house finch",
+        18: "mourning dove",
+        19: "myrtle warbler",
+        20: "northern cardinal",
+        21: "northern flicker",
+        22: "northern mockingbird",
+        23: "pine warbler",
+        24: "purple finch",
+        25: "red-bellied woodpecker",
+        26: "red-winged blackbird",
+        27: "song sparrow",
+        28: "tufted titmouse",
+        29: "white-breasted nuthatch",
+    }
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model_path = 'bird_classifier_best_model.pth'
+    num_classes = len(bird_dict)
+    model = load_model(model_path, num_classes, device)
+
+    file_path = 'test_audio/BlueJay/622782414_cornell.wav'
+    predictions, mel_spectrogram_paths = classify_audio_file(file_path, model, data_transforms, device)
+
+    for i, (pred, mel_path) in enumerate(zip(predictions, mel_spectrogram_paths)):
+        predicted_class = pred['predicted_class']
+        probabilities = pred['probabilities']
+        top_probs = pred['top_probs']
+        top_classes = pred['top_classes']
+
+        print(f"Segment {i}:")
+        print(
+            f"  Predicted class: {bird_dict[predicted_class]} with confidence {probabilities[predicted_class] * 100:.2f}%")
+
+        print("  Other guesses:")
+        for prob, cls in zip(top_probs, top_classes):
+            if cls != predicted_class:
+                print(f"    {bird_dict[cls]}: {prob * 100:.2f}%")
+
+    final_prediction = max(set(p['predicted_class'] for p in predictions),
+                           key=lambda x: sum(p['predicted_class'] == x for p in predictions))
+    final_confidence = np.max([p['probabilities'][p['predicted_class']] for p in predictions if
+                               p['predicted_class'] == final_prediction]) * 100
+    predicted_bird = bird_dict[final_prediction]
+    if final_confidence < 40.0:
+        predicted_bird = 'Unknown'
+        final_confidence = 100 - final_confidence
+    print(f"Final prediction for the audio file: {predicted_bird} with confidence {final_confidence:.2f}%")
+
 
 if __name__ == "__main__":
-    wav_file = "./clean/TuftedTitmouse/701551.wav"
-    model_path = "best_model.pth"
-    class_index = test_model(wav_file, model_path)
-    print(f"Predicted class index: {class_index}")
+    for file in os.listdir('temp_mels'):
+        path = os.path.join('temp_mels', file)
+        if os.path.isfile(path):
+            os.remove(path)
+    main()
