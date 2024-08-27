@@ -41,7 +41,6 @@ def save_mel_spectrogram(signal, directory, sr):
 
 
 def process_audio_files(dataset_path, mels_path, size):
-    # Dictionary to store file paths and their corresponding bird names
     bird_names = [d for d in os.listdir(dataset_path) if os.path.isdir(os.path.join(dataset_path, d))]
     print('Number of directories to check and cut: ', len(bird_names))
 
@@ -54,12 +53,10 @@ def process_audio_files(dataset_path, mels_path, size):
         bird_folder = os.path.join(dataset_path, bird_name)
         print("Processing bird: ", bird_name)
 
-        # Ensure the output directory exists
         output_directory = os.path.join(mels_path, bird_name)
         if not os.path.exists(output_directory):
             os.makedirs(output_directory)
 
-        # Process each file in the bird's directory
         for file_name in tqdm.tqdm(os.listdir(bird_folder), desc=f"Processing {bird_name}"):
             file_path = os.path.join(bird_folder, file_name)
             if os.path.isfile(file_path):
@@ -83,3 +80,37 @@ def process_audio_files(dataset_path, mels_path, size):
 
     print('Processing completed.')
 
+
+def process_audio_folder(dataset_path, mels_path, size):
+    if not os.path.exists(mels_path):
+        os.makedirs(mels_path)
+
+    audio_files = [f for f in os.listdir(dataset_path) if os.path.isfile(os.path.join(dataset_path, f))]
+    print('Number of files to process: ', len(audio_files))
+
+    step = (size['desired'] - size['stride']) * 16000
+    if step <= 0:
+        print("Error: Stride should be lower than desired length.")
+        return
+
+    for file_name in tqdm.tqdm(audio_files, desc="Processing files"):
+        file_path = os.path.join(dataset_path, file_name)
+        if os.path.isfile(file_path):
+            mel_base = file_name.rsplit('.', 1)[0].replace(' ', '')
+            mel_path = os.path.join(mels_path, f"{mel_base}.png")
+
+            if not os.path.exists(mel_path):
+                signal, sr = librosa.load(file_path, sr=16000)
+                step = (size['desired'] - size['stride']) * sr
+
+                nr = 0
+                for start, end in zip(range(0, len(signal), step), range(size['desired'] * sr, len(signal), step)):
+                    nr += 1
+                    if end - start > size['minimum'] * sr:
+                        segment_path = os.path.join(mels_path, f"{mel_base}_{nr}.png")
+                        if os.path.exists(segment_path):
+                            print(f"{segment_path} exists, skipping")
+                            continue
+                        save_mel_spectrogram(signal[start:end], segment_path, sr)
+
+    print('Processing completed.')
