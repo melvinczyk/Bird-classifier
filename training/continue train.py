@@ -45,6 +45,24 @@ bird_dict = {
     29: "White-breasted Nuthatch",
 }
 
+def plot_confusion_matrix(cm, classes, title='Confusion matrix'):
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=classes, yticklabels=classes)
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    plt.title(title)
+    plt.show()
+
+class BirdClassifierCNN(nn.Module):
+    def __init__(self, num_classes):
+        super(BirdClassifierCNN, self).__init__()
+        self.model = models.resnet18(pretrained=True)
+        num_ftrs = self.model.fc.in_features
+        self.model.fc = nn.Linear(num_ftrs, num_classes)
+
+    def forward(self, x):
+        return self.model(x)
+
 
 class BirdDataset(Dataset):
     def __init__(self, root_dir, transform=None, target_class=None):
@@ -87,45 +105,20 @@ data_transforms = transforms.Compose([
 ])
 
 
-class BirdClassifierCNN(nn.Module):
-    def __init__(self, num_classes):
-        super(BirdClassifierCNN, self).__init__()
-        self.model = models.resnet18(pretrained=True)
-        num_ftrs = self.model.fc.in_features
-        self.model.fc = nn.Linear(num_ftrs, num_classes)
-
-    def forward(self, x):
-        return self.model(x)
-
-
-def plot_confusion_matrix(cm, classes, title='Confusion matrix'):
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=classes, yticklabels=classes)
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
-    plt.title(title)
-    plt.show()
-
-
 if __name__ == "__main__":
-    # Define the class you want to finetune
-    finetune_class_index = 18  # For example, 18 corresponds to "Mourning Dove"
+    finetune_class_index = 18  # 18 corresponds to "Mourning Dove"
     finetune_class_name = bird_dict[finetune_class_index]
     num_classes = len(bird_dict)
 
-    # Load the dataset for the specific class
     dataset = BirdDataset(root_dir='../mels_5_sec', transform=data_transforms, target_class=finetune_class_name)
     print(f"Total number of samples in the dataset: {len(dataset)}")
 
-    # Load the existing model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = BirdClassifierCNN(num_classes=num_classes).to(device)
     model.load_state_dict(torch.load('../bird_classifier_best_model.pth'))
 
-    # Set the model to training mode
     model.train()
 
-    # Create a weighted sampler for the finetuning class
     class_weights = torch.ones(num_classes)  # Default to equal weights
     class_weights[finetune_class_index] = 1.0
     criterion = nn.CrossEntropyLoss(weight=class_weights.to(device))
@@ -137,7 +130,6 @@ if __name__ == "__main__":
     patience = 5
     early_stopping_counter = 0
 
-    # Split dataset for validation
     dataset_size = len(dataset)
     val_size = int(0.2 * dataset_size)
     train_size = dataset_size - val_size
